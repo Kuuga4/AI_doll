@@ -209,7 +209,3 @@ Press `Ctrl+C` to exit.
 - Add voice activity detection to avoid manual Enter-based recording.
 - Add conversation memory and session logging.
 - Package the RAG backend with clear indexing and retrieval instructions.
-
-## License
-
-No license has been specified yet. Add a license file before publishing the repository if the project will be shared publicly.
