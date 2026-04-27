@@ -1,211 +1,215 @@
-# AI_doll
+# AI_Doll
 
-## Project Description
+一个本地语音交互原型：通过**人脸识别门禁**启动会话，使用 **Whisper** 做语音识别，结合 **RAG** 检索生成回答，再用 **XTTS v2** 合成语音播报。
 
-This project implements a local voice-based RAG assistant with a face-recognition access gate. The system first opens the webcam and checks whether a predefined user is recognized. Once the target user is detected, it plays a short reference voice clip and then starts an interactive voice conversation loop.
+> 当前仓库更偏向课程/实验型项目，不是生产级系统。
 
-During each interaction, the user presses Enter to start recording and presses Enter again to stop. The recorded audio is captured from the microphone, converted into a NumPy waveform, and transcribed with OpenAI Whisper. The transcribed text is then passed to a local RAG query function, `src.query.query_rag()`, which generates a text response based on the project’s retrieval pipeline. Finally, the response is synthesized into speech with Coqui XTTS v2 and played back through the system audio device.
+---
 
-The project integrates computer vision, speech recognition, retrieval-augmented generation, and text-to-speech synthesis into a simple terminal-driven prototype. It is suitable for experimenting with personalized voice assistants, local multimodal interaction, face-gated access control, and voice-based knowledge retrieval workflows. The current implementation is designed as a research or prototype system rather than a production-ready assistant. It assumes local access to a webcam, microphone, speaker, a known face image, a reference speaker audio file, and a working RAG backend.
+## 1. 项目能力概览
 
-## Features
+- 摄像头识别指定用户（默认基于 `imgs/biden.jpg`）。
+- 通过回车控制开始/停止录音。
+- 使用 Whisper (`turbo`) 将语音转文本。
+- 调用 `src/query.py` 中的 RAG 链路生成回答。
+- 使用 Coqui TTS 的 `xtts_v2` 按参考音色合成中文语音。
+- 终端内完成交互与状态提示（`rich`）。
 
-- Face-recognition gate before starting the assistant
-- Webcam-based identity detection with `face_recognition` and OpenCV
-- Push-to-record terminal interaction
-- Microphone audio capture with `sounddevice`
-- Speech-to-text transcription using Whisper
-- Retrieval-augmented response generation through `src.query.query_rag()`
-- Chinese speech synthesis using Coqui XTTS v2
-- Local audio playback through the default system audio device
-- GPU acceleration support for TTS when CUDA is available
+---
 
-## System Workflow
+## 2. 实际代码结构（按当前仓库）
 
 ```text
-Start program
-   ↓
-Open webcam
-   ↓
-Detect known face
-   ↓
-Play reference voice clip
-   ↓
-Wait for user to start recording
-   ↓
-Record microphone audio
-   ↓
-Transcribe audio with Whisper
-   ↓
-Send text to RAG backend
-   ↓
-Generate assistant response
-   ↓
-Synthesize response with XTTS v2
-   ↓
-Play generated speech
-   ↓
-Repeat conversation loop
-```
-
-## Project Structure
-
-A recommended project structure is shown below:
-
-```text
-project-root/
-├── main.py
+AI_Doll/
 ├── README.md
+├── requirement.txt
+├── localchat.py                 # 主程序：人脸识别 + 录音 + STT + RAG + TTS
 ├── imgs/
-│   └── biden.jpg
+│   ├── biden.jpg                # 默认人脸参考图
+│   └── obama.jpg
 ├── target_voice/
-│   └── xinmeng_audio.wav
+│   ├── xinmeng_audio.wav        # 默认说话人参考音频（TTS克隆声线）
+│   ├── dobby.mp3
+│   └── hemine.wav
 └── src/
-    ├── __init__.py
-    └── query.py
+    ├── database.py              # 文档切分与向量库构建（Chroma）
+    ├── query.py                 # RAG 查询入口 query_rag
+    ├── document/
+    │   └── 作品.docx            # 默认知识库文档
+    └── chroma/                  # 已存在向量库目录
 ```
 
-The current code expects the following files or modules to exist:
+> `dropout/` 下文件看起来是历史实验版本，不是当前主流程入口。
 
-- `imgs/biden.jpg`: reference face image used for identity recognition
-- `target_voice/xinmeng_audio.wav`: reference voice used for playback and XTTS voice cloning
-- `src/query.py`: local RAG module containing the function `query_rag(text)`
+---
 
-## Requirements
-
-The code depends on the following Python packages:
+## 3. 运行流程
 
 ```text
-numpy
-openai-whisper
-sounddevice
-rich
-torch
-TTS
-face_recognition
-opencv-python
+启动 localchat.py
+  -> 打开摄像头并进行人脸识别
+  -> 识别到目标用户后播放参考音频
+  -> 回车开始录音，再次回车停止
+  -> Whisper 转写
+  -> query_rag() 检索并生成回答
+  -> XTTS 合成语音并播放
+  -> 循环下一轮对话
 ```
 
-Additional system-level dependencies may be required for audio, video, and face recognition. In particular, `face_recognition` depends on `dlib`, which may require CMake and a compatible C++ build environment.
+---
 
-## Installation
+## 4. 环境准备
 
-Create and activate a virtual environment:
+## 4.1 Python 版本建议
+
+- 建议 Python 3.10 ~ 3.12（项目中依赖较多，版本过新/过旧都可能触发兼容问题）。
+
+## 4.2 创建虚拟环境
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 ```
 
-On Windows PowerShell:
+Windows PowerShell：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install Python dependencies:
+## 4.3 安装依赖
+
+本仓库提供了完整依赖锁定文件 `requirement.txt`（UTF-16 编码，带 BOM）。推荐先尝试：
 
 ```bash
-pip install numpy openai-whisper sounddevice rich torch TTS face_recognition opencv-python
+pip install -r requirement.txt
 ```
 
-If `face_recognition` fails to install, install CMake and dlib first:
+如果你只想先跑主流程，可最小化安装：
 
 ```bash
-pip install cmake
-pip install dlib
-pip install face_recognition
+pip install numpy openai-whisper sounddevice rich torch TTS face_recognition opencv-python \
+            langchain langchain-openai langchain-community langchain-text-splitters chromadb \
+            python-dotenv docx2txt
 ```
 
-## Configuration
+> `face_recognition` 依赖 `dlib`，部分系统需要提前安装 C/C++ 构建工具与 CMake。
 
-Before running the program, update the reference assets and user name in the code if needed.
+---
 
-### Reference Face
+## 5. 配置说明（与源码一致）
 
-The program loads a known face image from:
+## 5.1 人脸识别配置（`localchat.py`）
 
-```python
-face_recognition.load_image_file("imgs/biden.jpg")
-```
+- 默认人脸图片：`imgs/biden.jpg`
+- 默认识别名称：`Reze`
 
-Replace this file with your own reference image, or update the file path.
-
-### Recognized User Name
-
-The recognized identity is currently stored as:
+可按需修改：
 
 ```python
+biden_image = face_recognition.load_image_file("imgs/biden.jpg")
 known_face_names = ["Reze"]
 ```
 
-Change this value to match the intended user label.
+## 5.2 语音克隆参考音频（`localchat.py`）
 
-### Reference Voice
-
-The program uses the following audio file as the reference speaker voice:
+默认使用：
 
 ```python
 "target_voice/xinmeng_audio.wav"
 ```
 
-This file is used both for the initial playback and as the `speaker_wav` input for XTTS voice synthesis.
+该音频会用于：
+- 人脸通过后的提示播放
+- XTTS 的 `speaker_wav` 音色克隆
 
-### RAG Backend
+## 5.3 RAG 与模型配置（`src/query.py`）
 
-The response generation step depends on:
+- 向量库目录：`src/chroma`
+- Embedding：`OllamaEmbeddings(model="nomic-embed-text")`
+- LLM：`ChatOpenAI(model="gpt-4o")`
+- 自定义 API Base URL：`https://api.guidaodeng.com/v1`
 
-```python
-response = qy.query_rag(text)
-```
+请确保：
+1. 本机可用 Ollama 且已拉取 `nomic-embed-text`。
+2. 你的 OpenAI 兼容接口密钥环境变量已配置（通常是 `OPENAI_API_KEY`）。
 
-Make sure that `src/query.py` exists and implements a compatible function:
+---
 
-```python
-def query_rag(text: str) -> str:
-    ...
-```
+## 6. 知识库构建（可选但推荐）
 
-The function should accept a user query string and return a response string.
-
-## Usage
-
-Run the assistant:
+当你更新 `src/document/` 下资料后，建议重建向量库：
 
 ```bash
-python main.py
+cd src
+python database.py --reset
+python database.py
 ```
 
-When the program starts, it will open the webcam and attempt to recognize the predefined user. After successful recognition, the assistant enters the voice interaction loop.
+说明：
+- `--reset` 会删除 `src/chroma` 后重建。
+- 支持加载 `.pdf/.docx/.txt` 文档。
 
-In each round:
+---
 
-1. Press Enter to start recording.
-2. Speak into the microphone.
-3. Press Enter again to stop recording.
-4. Wait for transcription, RAG response generation, speech synthesis, and audio playback.
+## 7. 启动项目
 
-Press `Ctrl+C` to exit.
+在仓库根目录执行：
 
-## Notes and Limitations
+```bash
+python localchat.py
+```
 
-- The code uses the default webcam through `cv2.VideoCapture(0)`.
-- The code uses the default microphone and speaker through `sounddevice`.
-- Face recognition currently processes every other frame to reduce computation.
-- The webcam window is not explicitly displayed with `cv2.imshow()` in the current implementation, although bounding boxes are drawn on frames internally.
-- The code comments mention BGR-to-RGB conversion, but the current assignment keeps the OpenCV frame unchanged. For stricter color handling, use `rgb_small_frame = small_frame[:, :, ::-1]`.
-- Whisper is loaded with the `turbo` model. Change this if a smaller or larger model is preferred.
-- TTS uses `tts_models/multilingual/multi-dataset/xtts_v2`, which may require significant memory and may run slowly on CPU.
-- The script is intended as a prototype and does not include authentication hardening, exception handling for missing devices, or robust production logging.
+交互方式：
+1. 先通过人脸识别。
+2. 按一次回车开始录音。
+3. 再按一次回车结束录音。
+4. 等待转写、检索与语音播报。
 
-## Possible Improvements
+按 `Ctrl + C` 退出。
 
-- Add a graphical preview window for face detection.
-- Add configuration through a `.env` or YAML file.
-- Add command-line arguments for model selection and file paths.
-- Improve error handling for missing webcam, microphone, model files, and reference assets.
-- Support multiple known users and multiple voice profiles.
-- Add voice activity detection to avoid manual Enter-based recording.
-- Add conversation memory and session logging.
-- Package the RAG backend with clear indexing and retrieval instructions.
+---
+
+## 8. 常见问题排查
+
+### 8.1 摄像头打不开 / 无法识别人脸
+
+- 确认摄像头权限已授予。
+- 确认 `imgs/biden.jpg` 包含清晰正脸。
+- 可先将目标人脸改为更容易识别的高清正脸图。
+
+### 8.2 麦克风无输入
+
+- 检查系统默认录音设备是否正确。
+- 尝试关闭占用麦克风的其他应用。
+
+### 8.3 TTS 很慢或显存不足
+
+- 当前会自动选择 CUDA（若可用），否则走 CPU。
+- CPU 下 `xtts_v2` 速度会明显下降，属于正常现象。
+
+### 8.4 RAG 调用失败
+
+重点检查：
+- Ollama 服务是否已启动。
+- `nomic-embed-text` 模型是否已拉取。
+- API Key 与 `base_url` 是否可用。
+- `src/chroma` 是否已构建成功。
+
+---
+
+## 9. 已知限制与后续优化建议
+
+当前限制：
+- 配置硬编码在 Python 文件中，不便切换环境。
+- 缺少完善的异常处理和日志分级。
+- 音频交互依赖“回车控制”，可用性一般。
+- 没有多用户人脸与多音色管理。
+
+建议优化方向：
+- 增加 `.env`/YAML 配置系统。
+- 增加设备检测与启动前自检。
+- 增加 VAD（语音活动检测）实现自动起停录音。
+- 为 `src/database.py` 和 `src/query.py` 增加单元测试。
+- 将主流程拆分为可复用模块，便于 Web/API 化部署。
